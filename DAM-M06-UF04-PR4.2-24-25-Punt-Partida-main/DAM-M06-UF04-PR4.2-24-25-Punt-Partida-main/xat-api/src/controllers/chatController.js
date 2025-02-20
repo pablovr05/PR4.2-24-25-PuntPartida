@@ -376,9 +376,120 @@ const getConversation = async (req, res, next) => {
     }
 };
 
+//--------------------------------------------- [ API DE SENTIMENT PABLO ] ---------------------------------------------
+
+
+/**
+ * Registra un nou prompt i genera una resposta d'anàlisi de sentiment
+ * @route POST /api/chat/sentiment-analysis
+ */
+const analyzeSentiment = async (req, res, next) => {
+    try {
+        const { 
+            conversationId, 
+            phrase_to_analyze, 
+            model = DEFAULT_OLLAMA_MODEL, 
+            stream = false 
+        } = req.body;
+
+        logger.info('Nova sol·licitud de anàlisi de sentiment rebuda', {
+            hasConversationId: !!conversationId,
+            model,
+            stream,
+            phraseLength: phrase_to_analyze?.length
+        });
+
+        // Validar que la frase a analizar no esté vacía
+        if (!phrase_to_analyze?.trim()) {
+            logger.warn('Intent de registrar frase buida');
+            return res.status(400).json({ message: 'La frase és obligatòria' });
+        }
+
+        // Crear o recuperar la conversación
+        let conversation;
+        if (conversationId) {
+            if (!validateUUID(conversationId)) {
+                logger.warn('ID de conversa invàlid', { conversationId });
+                return res.status(400).json({ message: 'ID de conversa invàlid' });
+            }
+            
+            conversation = await Conversation.findByPk(conversationId);
+            
+            if (!conversation) {
+                logger.info('Creant nova conversa amb ID proporcionat', { conversationId });
+                conversation = await Conversation.create({ id: conversationId });
+            }
+        } else {
+            logger.info('Creant nova conversa sense ID específic');
+            conversation = await Conversation.create();
+        }
+
+        // Crear el prompt para el análisis de sentimiento
+        const sentimentPrompt = `Analitza el sentiment d'aquesta frase: "${phrase_to_analyze}"`;
+
+        // Llamar a la función de respuesta normal (sin streaming)
+        const response = await handleSentimentResponse(req, res, conversation, sentimentPrompt, model, stream);
+        
+        res.status(201).json(response);
+    } catch (error) {
+        logger.error('Error en el procés d\'anàlisi de sentiment', {
+            error: error.message,
+            stack: error.stack
+        });
+        next(error);
+    }
+};
+
+/**
+ * Gestiona la resposta d'anàlisi de sentiment sense streaming
+ * @private
+ */
+async function handleSentimentResponse(req, res, conversation, prompt, model, stream) {
+    try {
+        logger.debug('Generant resposta d\'anàlisi de sentiment', {
+            conversationId: conversation.id,
+            model
+        });
+
+        // Llamamos al modelo de Ollama para obtener la respuesta de sentimiento
+        const ollamaResponse = await generateResponse(prompt, { model, stream });
+
+        // Guardar la respuesta de sentimiento en la base de dades
+        const newPrompt = await Prompt.create({
+            prompt: prompt.trim(),
+            response: ollamaResponse,
+            model,
+            stream: false,
+            ConversationId: conversation.id
+        });
+
+        logger.info('Prompt d\'anàlisi de sentiment registrat correctament', {
+            promptId: newPrompt.id,
+            conversationId: conversation.id
+        });
+
+        // Retornar la respuesta de anàlisi de sentiment
+        return {
+            conversationId: conversation.id,
+            promptId: newPrompt.id,
+            prompt: newPrompt.prompt,
+            response: newPrompt.response,
+            message: 'Anàlisi de sentiment completada correctament'
+        };
+    } catch (error) {
+        logger.error('Error en generar resposta per sentiment', {
+            error: error.message,
+            conversationId: conversation.id
+        });
+        throw error;
+    }
+}
+
+
 // Exportació de les funcions públiques
 module.exports = {
     registerPrompt,
     getConversation,
-    listOllamaModels
+    listOllamaModels,
+    analyzeSentiment
 };
