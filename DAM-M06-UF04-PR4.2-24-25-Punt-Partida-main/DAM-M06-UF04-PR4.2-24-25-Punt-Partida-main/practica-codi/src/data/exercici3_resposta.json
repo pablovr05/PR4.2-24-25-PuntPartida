@@ -1,0 +1,82 @@
+[
+  {
+    "fileName": "02f4b3be2d.jpg",
+    "data": {
+      "nom_comu": "Antílop pràriera",
+      "nom_cientific": "Antilocapra americana",
+      "taxonomia": {
+        "classe": "Mamífer",
+        "ordre": "Artiodactyla",
+        "familia": "Antilocapridae"
+      },
+      "habitat": {
+        "tipus": "Hàbitats de praderies i sabanes",
+        "regioGeografica": "Amèrica del Nord, centre-oest dels Estats Units i el sud-est de Canadà",
+        "clima": "Temperat amb estacions clares"
+      },
+      "dieta": {
+        "tipus": "Herbívor",
+        "aliments_principals": [
+          "fulles, flors, fruits, llavors i cereals"
+        ]
+      },
+      "caracteristiques_fisiques": {
+        "mida": {
+          "altura_mitjana_cm": "90-105 cm a les espatlles",
+          "pes_mitja_kg": "36-45 kg"
+        },
+        "colors_predominants": [
+          "pèl castany clar amb una banda blanca a la panxa"
+        ],
+        "trets_distintius": [
+          "cos llarg i prim, potes llargues i unes banyes curtes"
+        ]
+      },
+      "estat_conservacio": {
+        "classificacio_IUCN": "Pràcticament amenaçada",
+        "amenaces_principals": [
+          "pèrdua d'hàbitats, caça excessiva i competició amb altres espècies"
+        ]
+      }
+    }
+  },
+  {
+    "fileName": "03d7fc0888.jpg",
+    "data": {
+      "nom_comu": "Antracoterc o Bubale de l'Alt Sàhara",
+      "nom_cientific": "Addax nasomaculatus",
+      "taxonomia": {
+        "classe": "Mamífer",
+        "ordre": "Artiodactyla",
+        "familia": "Bovidae"
+      },
+      "habitat": {
+        "tipus": "Savanes i praderies de l'Àfrica subsahariana",
+        "regioGeografica": "Deserts del Sàhara, Mauritània, Mali, Burkina Faso, Níger i sud de la Libèria",
+        "clima": "Climat desertic"
+      },
+      "dieta": {
+        "tipus": "Herbívor",
+        "aliments_principals": [
+          "Pastures, llenties i fulles"
+        ]
+      },
+      "caracteristiques_fisiques": {
+        "mida": {
+          "altura_mitjana_cm": 100,
+          "pes_mitja_kg": 90
+        },
+        "colors_predominants": "Cremós o castany amb una banda blanca al llavi superior",
+        "trets_distintius": [
+          "Llanxa curta i estreta, banyes curtes i ramificades"
+        ]
+      },
+      "estat_conservacio": {
+        "classificacio_IUCN": "En perill crític (critically endangered)",
+        "amenaces_principals": [
+          "Pèrdua de pastures, caça furtiva i conflictes humans amb el bestiar local"
+        ]
+      }
+    }
+  }
+]

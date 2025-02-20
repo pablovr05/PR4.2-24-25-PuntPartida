@@ -1,6 +1,8 @@
 // Importacions
 const fs = require('fs').promises;
+const { dir } = require('console');
 const path = require('path');
+const axios = require('axios');
 require('dotenv').config();
 
 // Constants des de variables d'entorn
@@ -9,7 +11,9 @@ const IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.gif'];
 const OLLAMA_URL = process.env.CHAT_API_OLLAMA_URL;
 const OLLAMA_MODEL = process.env.CHAT_API_OLLAMA_MODEL_VISION;
 
-// Funció per llegir un fitxer i convertir-lo a Base64
+const DIRECTORIES_TO_ANALIZE = 1;
+const OUTPUT_FILE_NAME = "exercici3_resposta.json"
+
 async function imageToBase64(imagePath) {
     try {
         const data = await fs.readFile(imagePath);
@@ -20,7 +24,6 @@ async function imageToBase64(imagePath) {
     }
 }
 
-// Funció per fer la petició a Ollama amb més detalls d'error
 async function queryOllama(base64Image, prompt) {
     const requestBody = {
         model: OLLAMA_MODEL,
@@ -34,135 +37,163 @@ async function queryOllama(base64Image, prompt) {
         console.log(`URL: ${OLLAMA_URL}/generate`);
         console.log('Model:', OLLAMA_MODEL);
         
-        const response = await fetch(`${OLLAMA_URL}/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
+        let response = await axios.post(`${OLLAMA_URL}/generate`, requestBody, { timeout: 1000000 });
 
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        console.log('-----------------------')
         
-        // Depuració de la resposta
-        console.log('Resposta completa d\'Ollama:', JSON.stringify(data, null, 2));
-        
-        // Verificar si tenim una resposta vàlida
-        if (!data || !data.response) {
-            throw new Error('La resposta d\'Ollama no té el format esperat');
-        }
+        console.log("JSON sin parsear:", response.data.response);
 
-        return data.response;
+        console.log('-----------------------')
+
+        const jsonMatch = response.data.response.match(/\{[\s\S]*\}/);
+
+        console.log(jsonMatch)
+
+        const jsonData = JSON.parse(jsonMatch[0])
+
+        console.log("JSON Parseado correctamente:", jsonData);
+
+        return jsonData;
     } catch (error) {
         console.error('Error detallat en la petició a Ollama:', error);
-        console.error('Detalls adicionals:', {
-            url: `${OLLAMA_URL}/generate`,
-            model: OLLAMA_MODEL,
-            promptLength: prompt.length,
-            imageLength: base64Image.length
-        });
-        return null;
+        throw error;
     }
 }
 
-// Funció principal
-async function main() {
+async function getAllImages() {
+    const imageList = [];
+    const imagesFolderPath = path.join(__dirname, process.env.DATA_PATH, IMAGES_SUBFOLDER);
     try {
-        // Validem les variables d'entorn necessàries
-        if (!process.env.DATA_PATH) {
-            throw new Error('La variable d\'entorn DATA_PATH no està definida.');
-        }
-        if (!OLLAMA_URL) {
-            throw new Error('La variable d\'entorn CHAT_API_OLLAMA_URL no està definida.');
-        }
-        if (!OLLAMA_MODEL) {
-            throw new Error('La variable d\'entorn CHAT_API_OLLAMA_MODEL no està definida.');
-        }
-
-        const imagesFolderPath = path.join(__dirname, process.env.DATA_PATH, IMAGES_SUBFOLDER);
-        try {
-            await fs.access(imagesFolderPath);
-        } catch (error) {
-            throw new Error(`El directori d'imatges no existeix: ${imagesFolderPath}`);
-        }
-
+        await fs.access(imagesFolderPath);
+    } catch (error) {
+        throw new Error(`El directori d'imatges no existeix: ${imagesFolderPath}`);
+    }
+    try {
         const animalDirectories = await fs.readdir(imagesFolderPath);
+        directoriesAnalized = 0;
 
-        // Iterem per cada element dins del directori d'animals
         for (const animalDir of animalDirectories) {
-            // Construïm la ruta completa al directori de l'animal actual
+
             const animalDirPath = path.join(imagesFolderPath, animalDir);
 
             try {
-                // Obtenim informació sobre l'element (si és directori, fitxer, etc.)
+
                 const stats = await fs.stat(animalDirPath);
                 
-                // Si no és un directori, l'ignorem i continuem amb el següent
+
                 if (!stats.isDirectory()) {
                     console.log(`S'ignora l'element no directori: ${animalDirPath}`);
                     continue;
                 }
             } catch (error) {
-                // Si hi ha error al obtenir la info del directori, el loguegem i continuem
+
                 console.error(`Error al obtenir informació del directori: ${animalDirPath}`, error.message);
                 continue;
             }
 
-            // Obtenim la llista de tots els fitxers dins del directori de l'animal
             const imageFiles = await fs.readdir(animalDirPath);
 
-            // Iterem per cada fitxer dins del directori de l'animal
             for (const imageFile of imageFiles) {
-                // Construïm la ruta completa al fitxer d'imatge
+
                 const imagePath = path.join(animalDirPath, imageFile);
-                // Obtenim l'extensió del fitxer i la convertim a minúscules
+
                 const ext = path.extname(imagePath).toLowerCase();
                 
-                // Si l'extensió no és d'imatge vàlida (.jpg, .png, etc), l'ignorem
                 if (!IMAGE_TYPES.includes(ext)) {
                     console.log(`S'ignora fitxer no vàlid: ${imagePath}`);
                     continue;
                 }
 
-                // Convertim la imatge a format Base64 per enviar-la a Ollama
                 const base64String = await imageToBase64(imagePath);
 
-                // Si s'ha pogut convertir la imatge correctament
                 if (base64String) {
-                    // Loguegem informació sobre la imatge que processarem
-                    console.log(`\nProcessant imatge: ${imagePath}`);
-                    console.log(`Mida de la imatge en Base64: ${base64String.length} caràcters`);
-                    
-                    // Definim el prompt per a Ollama
-                    const prompt = "Identifica quin tipus d'animal apareix a la imatge";
-                    console.log('Prompt:', prompt);
-                    
-                    // Fem la petició a Ollama amb la imatge i el prompt
-                    const response = await queryOllama(base64String, prompt);
-                    
-                    // Processem la resposta d'Ollama
-                    if (response) {
-                        // Si hem rebut resposta, la mostrem
-                        console.log(`\nResposta d'Ollama per ${imageFile}:`);
-                        console.log(response);
-                    } else {
-                        // Si no hem rebut resposta vàlida, loguegem l'error
-                        console.error(`\nNo s'ha rebut resposta vàlida per ${imageFile}`);
-                    }
-                    // Separador per millorar la llegibilitat del output
-                    console.log('------------------------');
+                    imageList.push({fileName : imageFile, base64String : base64String});
                 }
             }
-            console.log(`\nATUREM L'EXECUCIÓ DESPRÉS D'ITERAR EL CONTINGUT DEL PRIMER DIRECTORI`);
-            break; // ATUREM L'EXECUCIÓ DESPRÉS D'ITERAR EL CONTINGUT DEL PRIMER DIRECTORI
+            directoriesAnalized++
+            if (directoriesAnalized >= DIRECTORIES_TO_ANALIZE) {
+                break;
+            }
         }
-
     } catch (error) {
         console.error('Error durant l\'execució:', error.message);
+    }
+    return imageList;
+}
+
+async function main() {
+    if (!process.env.DATA_PATH) {
+        throw new Error('La variable d\'entorn DATA_PATH no està definida.');
+    }
+    if (!OLLAMA_URL) {
+        throw new Error('La variable d\'entorn CHAT_API_OLLAMA_URL no està definida.');
+    }
+    if (!OLLAMA_MODEL) {
+        throw new Error('La variable d\'entorn CHAT_API_OLLAMA_MODEL no està definida.');
+    }
+
+    const imageList = await getAllImages();
+    console.log(`Se analizaran ${imageList.length} imágenes`);
+    const result = [];
+
+    const prompt = `Identify the type of animal in the image. Respond **only** with a valid JSON object, following the exact structure below. Do not include explanations, text, or code block delimiters. The response must be **only JSON**.
+
+{
+    "nom_comu": "Nom comú de l'animal",
+    "nom_cientific": "Nom científic si és conegut",
+    "taxonomia": {
+        "classe": "Mamífer/Au/Rèptil/Amfibi/Peix",
+        "ordre": "Ordre taxonòmic",
+        "familia": "Família taxonòmica"
+    },
+    "habitat": {
+        "tipus": "Tipus d'hàbitats",
+        "regioGeografica": "Regions on viu",
+        "clima": "Tipus de climes"
+    },
+    "dieta": {
+        "tipus": "Carnívor/Herbívor/Omnívor",
+        "aliments_principals": "Llista d'aliments"
+    },
+    "caracteristiques_fisiques": {
+        "mida": {
+            "altura_mitjana_cm": "Altura mitjana en cm",
+            "pes_mitja_kg": "Pes mitjà en kg"
+        },
+        "colors_predominants": "Colors",
+        "trets_distintius": "Característiques especials"
+    },
+    "estat_conservacio": {
+        "classificacio_IUCN": "Estat de conservació segons IUCN",
+        "amenaces_principals": "Amenaces principals"
+    }
+}
+
+**Ensure that the response is valid JSON and contains no additional text, markdown, or formatting.**`;
+
+    for (const image of imageList) {
+        try {
+            const response = await queryOllama(image.base64String, prompt);
+            
+            result.push({
+                fileName: image.fileName,
+                data: response
+            });
+
+        } catch (error) {
+            console.error(`Error processant imatge ${image.fileName}:`, error);
+            continue;
+        }
+    }
+
+    const outputPath = path.join(__dirname, 'data', OUTPUT_FILE_NAME);
+
+    try {
+        console.log("Resultat final:", JSON.stringify(result, null, 2));
+        await fs.writeFile(outputPath, JSON.stringify(result, null, 2));
+        console.log(`JSON ${OUTPUT_FILE_NAME} desat correctament`);
+    } catch (err) {
+        console.error("Error escrivint al fitxer:", err);
     }
 }
 
